@@ -118,7 +118,8 @@ function noteBridgeVersion(v) {
 
 //
 
-const PORTS = [18899, 18900, 18901, 18902, 18903];
+// The Firefox build sets its own range (firefox/compat.js) so it never joins a Chrome/Edge bridge.
+const PORTS = globalThis.__beatBridgePorts || [18899, 18900, 18901, 18902, 18903];
 const DIRECT_DEAD_MS = 45000;   
 let directWs = null;
 let directTimer = null;

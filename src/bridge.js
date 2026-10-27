@@ -483,7 +483,7 @@ export function startBridge({ port = DEFAULT_PORT, token = newToken(), writeInfo
       return null;
     }
     const ok = (list.sites || []).some((s) => host === s || host.endsWith('.' + s));
-    return ok ? null : { code: 'SITE_NOT_ALLOWED', message: `${host} is not in the authorized site list. Add it to "sites" in ~/.beat-browser/allowlist.json.` };
+    return ok ? null : { code: 'SITE_NOT_ALLOWED', message: `${host} is not in the authorized site list. Add it to "sites" in ${ALLOWLIST_FILE}.` };
   }
 
   function send(ws, obj) {

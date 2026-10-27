@@ -7,14 +7,19 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
-export const HOME = path.join(os.homedir(), '.beat-browser');
+// BEAT_BROWSER_HOME / BEAT_BROWSER_PORT run a second, independent bridge beside the default one
+// (e.g. Firefox on 18910 while Chrome/Edge keep 18899); each has its own token, lock and logs.
+export const HOME = process.env.BEAT_BROWSER_HOME
+  ? path.resolve(process.env.BEAT_BROWSER_HOME)
+  : path.join(os.homedir(), '.beat-browser');
 export const BRIDGE_FILE = path.join(HOME, 'bridge.json');
 export const LOCK_FILE = path.join(HOME, 'bridge.lock');
 export const AUDIT_FILE = path.join(HOME, 'audit.jsonl');
 export const ALLOWLIST_FILE = path.join(HOME, 'allowlist.json');
 export const LOG_FILE = path.join(HOME, 'bridge.log');
 
-export const DEFAULT_PORT = 18899;
+const envPort = Number(process.env.BEAT_BROWSER_PORT);
+export const DEFAULT_PORT = Number.isInteger(envPort) && envPort > 1024 && envPort < 65536 ? envPort : 18899;
 
 export function ensureHome() {
   fs.mkdirSync(HOME, { recursive: true, mode: 0o700 });
