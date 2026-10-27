@@ -639,6 +639,7 @@ function actText(cmd, p = {}) {
     case 'download': return 'download';
     case 'upload': return 'upload file';
     case 'eval': return 'run script';
+    case 'console': return 'read console';
     case 'wait': return 'wait';
     case 'ask': return 'ask the user for help';
     
@@ -828,6 +829,22 @@ async function ensureNetHook() {
     allFrames: false,
   }]);
   return true; 
+}
+
+// Console recording is opt-in per site: start registers the hook for that origin at document_start.
+const CONSOLE_SCRIPT_ID = 'hc-console-hook';
+
+async function consoleMatches() {
+  const [entry] = await chrome.scripting.getRegisteredContentScripts({ ids: [CONSOLE_SCRIPT_ID] }).catch(() => []);
+  return entry?.matches || [];
+}
+
+async function setConsoleMatches(matches) {
+  await chrome.scripting.unregisterContentScripts({ ids: [CONSOLE_SCRIPT_ID] }).catch(() => {});
+  if (!matches.length) return;
+  await chrome.scripting.registerContentScripts([{
+    id: CONSOLE_SCRIPT_ID, matches, js: ['console-hook.js'], runAt: 'document_start', world: 'MAIN', allFrames: false,
+  }]);
 }
 
 async function snapshotAll(tabId, p = {}) {
@@ -2094,6 +2111,63 @@ const HANDLERS = {
   //
   
   
+  async console(p, tabId) {
+    const id = await resolveTab(tabId);
+    const tab = await chrome.tabs.get(id);
+    let origin = '', pattern = '';
+    try {
+      const u = new URL(tab.url);
+      // Match patterns cannot carry a port; a host pattern without one matches every port.
+      if (/^https?:$/.test(u.protocol)) { origin = u.origin; pattern = `${u.protocol}//${u.hostname}/*`; }
+    } catch { /* not a web page */ }
+    if (!origin) throw err('NOT_INTERACTABLE', 'Console recording works on http(s) pages only.');
+    const action = p.action || 'read';
+
+    if (action === 'start') {
+      const now = await consoleMatches();
+      if (!now.includes(pattern)) await setConsoleMatches([...now, pattern]);
+      await chrome.scripting.executeScript({ target: { tabId: id }, world: 'MAIN', files: ['console-hook.js'] });
+      if (p.reload) {
+        await chrome.tabs.reload(id);
+        await waitForReady(id, { expectNav: true });
+        if (IS_FIREFOX) await waitForLoad(id);
+      }
+      return { text: `Recording console output and uncaught errors on ${origin}`
+        + (p.reload ? ' (page reloaded; entries start from the beginning of the load).' : '. Only output from now on is recorded; pass reload:true to capture page start-up.')
+        + ' The recorder is re-installed on every load of this site until console(action:"stop").' };
+    }
+    if (action === 'stop') {
+      await setConsoleMatches((await consoleMatches()).filter((m) => m !== pattern));
+      return { text: `Stopped recording on ${origin}. Pages already open keep their recorder until they reload.` };
+    }
+    if (action !== 'read' && action !== 'clear') throw err('INTERNAL', 'action must be start, read, clear or stop');
+
+    const levels = Array.isArray(p.level) ? p.level.map(String) : p.level ? [String(p.level)] : null;
+    const [{ result } = {}] = await chrome.scripting.executeScript({
+      target: { tabId: id }, world: 'MAIN',
+      func: (after, levels, match, limit, clear) => {
+        const c = window.__beatConsole;
+        if (!c) return null;
+        let rows = c.read(after);
+        if (levels) rows = rows.filter((r) => levels.includes(r.level));
+        if (match) rows = rows.filter((r) => r.text.includes(match));
+        const total = rows.length;
+        const out = { rows: rows.slice(-limit), total, last: c.last() };
+        if (clear) c.clear();
+        return out;
+      },
+      args: [Number(p.after) || 0, levels, p.match ? String(p.match) : '', Math.min(Math.max(Number(p.limit) || 100, 1), 500), action === 'clear'],
+    });
+    if (!result) {
+      throw err('NOT_INTERACTABLE', 'No console recorder on this page. Call console(action:"start") first (reload:true to include page start-up).');
+    }
+    const time = (t) => new Date(t).toTimeString().slice(0, 8) + '.' + String(t % 1000).padStart(3, '0');
+    const lines = result.rows.map((r) => `#${r.seq} ${time(r.t)} [${r.level}] ${r.text}`);
+    const head = `${result.total} entr${result.total === 1 ? 'y' : 'ies'}${result.total > result.rows.length ? `, showing the last ${result.rows.length}` : ''}; newest #${result.last}. Pass after:${result.last} next time for only new entries.`
+      + (action === 'clear' ? ' Buffer cleared.' : '');
+    return { untrusted: true, meta: `url="${tab.url}"`, text: head + (lines.length ? '\n' + lines.join('\n') : '') };
+  },
+
   async eval(p, tabId) {
     const id = await resolveTab(tabId);
 
@@ -2113,10 +2187,17 @@ const HANDLERS = {
       ([{ result } = {}] = await chrome.scripting.executeScript({
         target: { tabId: id },
         world: 'MAIN',
-        func: (src, max) => {
+        func: async (src, max, wait) => {
           try {
             // eslint-disable-next-line no-eval
-            const v = (0, eval)(`"use strict"; (${src})`);
+            let v = (0, eval)(`"use strict"; (${src})`);
+            // Settle a returned Promise (bounded) so async page APIs can be inspected.
+            if (v && typeof v.then === 'function') {
+              let timer;
+              v = await Promise.race([v, new Promise((_, reject) => {
+                timer = setTimeout(() => reject(new Error(`the Promise did not settle within ${wait}ms`)), wait);
+              })]).finally(() => clearTimeout(timer));
+            }
             let s;
             try { s = JSON.stringify(v, null, 2); } catch { s = String(v); }
             if (s === undefined) s = 'undefined';
@@ -2125,7 +2206,7 @@ const HANDLERS = {
             return { ok: false, message: String((e && e.message) || e) };
           }
         },
-        args: [String(p.expr || ''), p.maxLength || 20000],
+        args: [String(p.expr || ''), p.maxLength || 20000, Math.min(Math.max(Number(p.wait) || 10000, 100), 25000)],
       }));
     } finally {
       if (guarded) {

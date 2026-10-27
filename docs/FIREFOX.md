@@ -33,7 +33,8 @@ when High-fidelity mode is off, plus a few Firefox-specific fallbacks:
 | `navigate`, `reload`, `wait` | Same | |
 | `snapshot`, `read_text`, `query` | Same | |
 | `network`, `fetch` | Same | `reload:true` waits for the document to finish loading first. |
-| `eval` | Same on most pages | No CDP fallback on pages whose CSP forbids eval; use `query` or `network`. A returned Promise is not awaited (as in Chrome). |
+| `eval` | Same on most pages | Runs in the page's own context and awaits a returned Promise (`wait`, default 10 s). No CDP fallback on pages whose CSP forbids eval; use `query` or `network`. |
+| `console` | Same | Opt-in per site: records `console.*`, uncaught errors and unhandled rejections from page start-up (`start` with `reload:true`). Userscripts must run in the page context (e.g. Tampermonkey `@sandbox raw`) to be recorded. While recording, DevTools attributes log lines to `console-hook.js`. |
 | `screenshot` | Better | `tabs.captureTab` captures background tabs without foregrounding. |
 | `upload` (file input) | Different | Bytes are sent instead of a local path; the MCP server caps this at 48 MB. |
 | `upload` (drop zone) | Same | |

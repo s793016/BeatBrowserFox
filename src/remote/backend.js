@@ -8,7 +8,8 @@ import { getToolList } from '../mcp-server.js';
 import { failure } from './store.js';
 
 const CLI = fileURLToPath(new URL('../cli.js', import.meta.url));
-const excluded = new Set(['upload', 'download', 'learnings', 'browser_task']);
+// console stays local-only: recorded page output can carry private data and was not part of the remote contract.
+const excluded = new Set(['upload', 'download', 'learnings', 'browser_task', 'console']);
 export function remoteTools() {
   return getToolList({ fastAgentEnabled: false }).filter(tool => !excluded.has(tool.name)).map(tool => {
     const copy = structuredClone(tool);

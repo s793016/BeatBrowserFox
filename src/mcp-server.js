@@ -461,11 +461,37 @@ const TOOLS = [
     name: 'eval',
     description:
       'Run a JS expression in the page. NOTE: fails on any site with a strict CSP (no unsafe-eval) — most large sites. ' +
-      'Prefer `query` for data extraction. Isolated world: sees the DOM, not the page\'s own JS variables.',
+      'Prefer `query` for data extraction. Runs in the page\'s own context (sees its JS variables). ' +
+      'A returned Promise is awaited (up to `wait` ms).',
     inputSchema: {
       type: 'object',
-      properties: { expr: { type: 'string' }, tabId: TAB },
+      properties: {
+        expr: { type: 'string' },
+        wait: { type: 'number', description: 'Max ms to wait for a returned Promise. Default 10000, max 25000.' },
+        tabId: TAB,
+      },
       required: ['expr'],
+    },
+  },
+  {
+    name: 'console',
+    description:
+      'Debug a page or a userscript: record console.log/info/warn/error/debug, uncaught errors and unhandled ' +
+      'rejections, then read them. start installs a recorder for this site (reload:true reloads so page start-up ' +
+      'and document-idle userscripts are captured; it stays on for the site until stop). read returns entries ' +
+      '(after:N for only newer ones, level/match to filter). Breakpoints and the browser\'s own security/CSP ' +
+      'messages are not available; ask the user to check DevTools for those. Recorded text is page content.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', enum: ['start', 'read', 'clear', 'stop'], description: 'Default read.' },
+        reload: { type: 'boolean', description: 'With start: reload now so output from page start-up is recorded.' },
+        after: { type: 'number', description: 'With read: only entries with a sequence number above this.' },
+        level: { description: 'Filter: log, info, warn, error, debug, uncaught, unhandledrejection (string or array).', anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }] },
+        match: { type: 'string', description: 'Filter: only entries containing this text.' },
+        limit: { type: 'number', description: 'Max entries returned (newest kept). Default 100, max 500.' },
+        tabId: TAB,
+      },
     },
   },
   {

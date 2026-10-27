@@ -26,11 +26,17 @@ function tempDir(t) {
 
 test('TaskSpaces adds scope while preserving every existing tool contract', () => {
   const tools = getToolList();
-  const baseline = tools.filter(tool => tool.name !== 'spaces').map(tool => {
+  // console is a later additive tool; eval only gained the optional `wait` argument.
+  const baseline = tools.filter(tool => tool.name !== 'spaces' && tool.name !== 'console').map(tool => {
     const copy = structuredClone(tool); delete copy.inputSchema.properties.spaceId;
     // Wording corrections do not change the existing argument contracts.
     if (copy.inputSchema.properties.real) copy.inputSchema.properties.real.description =
       'Force a real browser-level event. Automatic on no-effect, except for submit/pay/delete.';
+    if (copy.name === 'eval') {
+      delete copy.inputSchema.properties.wait;
+      copy.description = 'Run a JS expression in the page. NOTE: fails on any site with a strict CSP (no unsafe-eval) — most large sites. ' +
+        'Prefer `query` for data extraction. Isolated world: sees the DOM, not the page\'s own JS variables.';
+    }
     if (copy.name === 'download') copy.description = 'Download a URL via the browser itself. For anything large (video, archives) where fetch+binary would ' +
       'blow up at its 12MB cap. Straight to disk, never opens the OS save dialog.';
     return copy;
@@ -45,7 +51,7 @@ test('TaskSpaces adds scope while preserving every existing tool contract', () =
     '00590d166e65b6926d05b94ac41cdb9d13a8371a6bfb159c92255fae63eff3d3');
   assert.deepEqual(getToolList({ fastAgentEnabled: true }).slice(0, -1), tools);
   assert.equal(getToolList({ fastAgentEnabled: true }).at(-1).name, 'browser_task');
-  assert.equal(getToolList({ fastAgentEnabled: '1' }).length, 24);
+  assert.equal(getToolList({ fastAgentEnabled: '1' }).length, 25);
 });
 
 test('optional task schema exposes no credential, model, code, tab or output-path overrides', () => {
@@ -272,7 +278,7 @@ for (const enabled of [false, true]) {
     t.after(async () => { await client.close(); });
     await client.connect(transport);
     const listed = await client.listTools();
-    assert.equal(listed.tools.length, enabled ? 25 : 24);
+    assert.equal(listed.tools.length, enabled ? 26 : 25);
     assert.equal(listed.tools.some((tool) => tool.name === 'browser_task'), enabled);
     const response = await client.callTool({ name: 'browser_task', arguments: task({ dryRun: true }) });
     const result = body(response);

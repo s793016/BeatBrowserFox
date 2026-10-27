@@ -23,7 +23,8 @@ Firefox 沒有 `chrome.debugger`（CDP），所以擴充功能使用 BeatBrowser
 | `navigate`、`reload`、`wait` | 相同 | |
 | `snapshot`、`read_text`、`query` | 相同 | |
 | `network`、`fetch` | 相同 | `reload:true` 會先等頁面載入完成 |
-| `eval` | 多數頁面相同 | CSP 禁止 eval 的頁面沒有 CDP 退路，請改用 `query` 或 `network`。回傳 Promise 時不會等它完成（Chrome 版也一樣） |
+| `eval` | 多數頁面相同 | 在頁面自己的環境執行，會等回傳的 Promise（`wait`，預設 10 秒）。CSP 禁止 eval 的頁面沒有 CDP 退路，請改用 `query` 或 `network` |
+| `console` | 相同 | 依網站手動開啟：從頁面載入一開始就記錄 `console.*`、未捕捉錯誤、未處理的 rejection（`start` 加 `reload:true`）。userscript 要在頁面環境執行（例如 Tampermonkey `@sandbox raw`）才收得到。記錄期間 DevTools 會把 log 來源顯示成 `console-hook.js` |
 | `screenshot` | 較好 | `tabs.captureTab` 可直接截背景分頁，不用切到前景 |
 | `upload`（file input） | 不同 | 傳送檔案內容而非本機路徑，MCP server 上限 48 MB |
 | `upload`（拖放區） | 相同 | |
