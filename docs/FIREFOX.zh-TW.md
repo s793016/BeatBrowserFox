@@ -91,9 +91,16 @@ Firefox 正式版只安裝已簽章的附加元件。有兩種方式可以不必
 1. 到 https://addons.mozilla.org/developers/addon/api/key/ 建立 AMO API 金鑰。
 2. 以不公開上架的方式簽章：
 
-   ```bash
-   npx web-ext sign -s dist/firefox --channel=unlisted --api-key=<JWT issuer> --api-secret=<JWT secret>
+   把金鑰放進「只在目前視窗有效」的環境變數，不要寫進檔案或留在指令歷史（以 PowerShell 為例）：
+
+   ```powershell
+   $env:WEB_EXT_API_KEY = Read-Host 'JWT issuer'
+   $env:WEB_EXT_API_SECRET = Read-Host 'JWT secret'
+   npm run build:firefox
+   npx web-ext sign -s dist/firefox --channel=unlisted --artifacts-dir dist/signed
    ```
+
+   manifest 宣告了 `data_collection_permissions: none`：擴充功能只跟 127.0.0.1 上的橋接通訊。之後每次重新簽章，都要調高 `firefox/manifest.json` 的 `version`。
 
 3. 在正式版 Firefox 的 `about:addons` 安裝簽好的 `.xpi`。
 

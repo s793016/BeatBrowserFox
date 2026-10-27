@@ -107,9 +107,18 @@ Nightly and unbranded builds honor this pref.
 1. Create AMO API credentials at https://addons.mozilla.org/developers/addon/api/key/.
 2. Sign the build without listing it publicly:
 
-   ```bash
-   npx web-ext sign -s dist/firefox --channel=unlisted --api-key=<JWT issuer> --api-secret=<JWT secret>
+   Put the credentials in environment variables for the current shell only, so they stay out of
+   files and shell history (PowerShell shown):
+
+   ```powershell
+   $env:WEB_EXT_API_KEY = Read-Host 'JWT issuer'
+   $env:WEB_EXT_API_SECRET = Read-Host 'JWT secret'
+   npm run build:firefox
+   npx web-ext sign -s dist/firefox --channel=unlisted --artifacts-dir dist/signed
    ```
+
+   The manifest declares `data_collection_permissions: none`: the extension only talks to the
+   bridge on 127.0.0.1. Each later signing needs a higher `version` in `firefox/manifest.json`.
 
 3. Install the signed `.xpi` from `about:addons` in release Firefox.
 
