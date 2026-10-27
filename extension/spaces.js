@@ -102,7 +102,7 @@ export function createSpaces(chrome, cdp, { now = Date.now, uuid = () => crypto.
   }
   async function unmarkPage(s, tab) {
     if (!s.groupTitle || !tab || tab.windowId !== s.windowId || tab.groupId !== s.groupId) return;
-    const group = await chrome.tabGroups.get(s.groupId).catch(() => null);
+    const group = await chrome.tabGroups?.get(s.groupId).catch(() => null);
     if (group?.title === s.groupTitle && group.windowId === s.windowId) {
       // Closing a group can save it in Chrome. Ungroup our own page first.
       await chrome.tabs.ungroup(tab.id);

@@ -6,7 +6,7 @@
   if (globalThis.BeatBrowserUI) return;
   const chinese = {
   "Browser pages": "浏览器页面",
-  "Linked pages in this Chrome profile": "当前 Chrome 配置的关联页面",
+  "Linked pages in this browser profile": "当前浏览器配置的关联页面",
   "{windows} windows · {pages} pages": "{windows} 个窗口 · {pages} 个页面",
   "No linked pages": "没有关联页面",
   "Close pages": "关闭页面",
@@ -63,7 +63,7 @@
   "Help": "帮助",
   "Connection unavailable. Try reconnecting.": "连接不可用，请重连。",
   "Could not open the sidebar.": "无法打开侧栏。",
-  "Open from the Chrome toolbar.": "请从 Chrome 工具栏打开。",
+  "Open from the browser toolbar.": "请从浏览器工具栏打开。",
   "No tasks": "暂无任务",
   "Ask your agent to start a background task.": "让 Agent 开始一个后台任务。",
   "{active} active · {review} paused": "{active} 个进行中 · {review} 个已暂停",

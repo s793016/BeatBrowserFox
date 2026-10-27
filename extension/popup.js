@@ -62,6 +62,8 @@ function renderL2(on) {
 }
 
 chrome.storage.local.get('l2Disabled', ({ l2Disabled }) => renderL2(!l2Disabled));
+// Firefox has no debugger API, so there is no precise-input layer to switch.
+if (!chrome.debugger) l2btn.closest('.toggle-row').hidden = true;
 
 const markbtn = document.getElementById('markbtn');
 const markstate = document.getElementById('markstate');
@@ -142,7 +144,7 @@ if (workspaceButton) {
         messageArea.textContent = t('Could not open the sidebar.');
       });
     };
-  }).catch(() => { messageArea.textContent = t('Open from the Chrome toolbar.'); });
+  }).catch(() => { messageArea.textContent = t('Open from the browser toolbar.'); });
 }
 let cleanupBusy = false;
 const clearEnded = document.getElementById('cleanup-ended');
@@ -334,7 +336,7 @@ async function refreshBrowserPages() {
     retryPages.hidden=true;
     closePages.hidden=!browserPages.length;
     document.getElementById('browser-page-count').textContent=String(browserPages.length);
-    document.getElementById('browser-page-summary').textContent=t('Linked pages in this Chrome profile')+' · '+t('{windows} windows · {pages} pages',{windows:result.windows,pages:browserPages.length});
+    document.getElementById('browser-page-summary').textContent=t('Linked pages in this browser profile')+' · '+t('{windows} windows · {pages} pages',{windows:result.windows,pages:browserPages.length});
     closePages.disabled=pagesBusy || !browserPages.length;
     pageRoot.replaceChildren();
     if (!browserPages.length) {

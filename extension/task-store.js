@@ -65,7 +65,7 @@ export function createTaskStore(chrome, {now=Date.now}={}) {
       for(const page of s.pages || []) {
         const tab=await chrome.tabs.get(page.tabId).catch(()=>null);
         if(!tab || tab.windowId!==s.windowId || tab.groupId<0)continue;
-        const group=await chrome.tabGroups.get(tab.groupId).catch(()=>null);
+        const group=await chrome.tabGroups?.get(tab.groupId).catch(()=>null);
         if(group?.title!==s.groupTitle || group.windowId!==s.windowId)continue;
         try { await chrome.tabs.ungroup(tab.id); }
         catch { failed=true; }
@@ -81,7 +81,7 @@ export function createTaskStore(chrome, {now=Date.now}={}) {
       tasks=[1,2].includes(saved?.version)?saved.tasks || {}:{};
       const [tabs,identities,groups]=await Promise.all([
         chrome.tabs.query({}),targets(),
-        Object.values(tasks).some(s=>s.groupTitle)?chrome.tabGroups.query({}):Promise.resolve([]),
+        Object.values(tasks).some(s=>s.groupTitle)&&chrome.tabGroups?chrome.tabGroups.query({}):Promise.resolve([]),
       ]);
       for(const s of Object.values(tasks)) await reconcile(s,tabs,identities,groups);
     }

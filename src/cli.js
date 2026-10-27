@@ -134,7 +134,7 @@ switch (cmd) {
   }
 
   default:
-    console.log(`beat-browser: let any AI agent control your own Chrome
+    console.log(`beat-browser: let any AI agent control your own browser (Chrome or Firefox)
 
 Local Agent mode: local stdio MCP + bridge + Chrome extension. No tunnel needed.
 Cloud Agent mode: opt-in remote adapter + your own authenticated tunnel + local Chrome.
@@ -390,6 +390,9 @@ Load the extension in Chrome (BeatBrowser is not on the Chrome Web Store):
        ${dir}
 
      Add --reveal to select it in Finder / Explorer so you can drag it over.
+
+Firefox: run \`npm run build:firefox\` in this checkout, then load dist/firefox/manifest.json
+from about:debugging#/runtime/this-firefox. See docs/FIREFOX.md for permanent installs.
 
 Once loaded the extension connects to the bridge by itself. Run \`beat-browser doctor\`
 and look for "Browser extension online".

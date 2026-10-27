@@ -1,0 +1,135 @@
+# BeatBrowser for Firefox
+
+[Back to BeatBrowser](../README.md) · [Install (Chrome)](INSTALL.md) · [繁體中文](FIREFOX.zh-TW.md)
+
+The Firefox build lets an MCP agent drive your running Firefox, including your signed-in sessions and
+installed add-ons, through the same local bridge as the Chrome extension. It is built from the shared
+`extension/` sources; Chrome behavior is unchanged.
+
+Status: experimental. Tested on Firefox 158 (Windows 11) with an isolated test profile.
+
+## How it differs from Chrome
+
+Firefox has no `chrome.debugger` (CDP), so the extension runs on the paths BeatBrowser already uses
+when High-fidelity mode is off, plus a few Firefox-specific fallbacks:
+
+- **Input is synthetic.** Clicks, typing and keys are dispatched by the content script, so page
+  listeners see `isTrusted === false`. Pages or userscripts that require trusted events will not
+  react. This is an accepted limitation; nothing tries to fake `isTrusted`.
+- **No background hiding.** Background tabs and windows that are not visible are throttled by Firefox
+  (and put into Windows efficiency mode). On a busy machine commands can take seconds.
+  Chrome keeps tabs "focused" through CDP; Firefox has no equivalent.
+- **Dialogs are detected, never answered.** A small MAIN-world hook (only in tabs the agent works in)
+  reports native `alert`/`confirm`/`prompt`. While one is open, page commands return
+  `DIALOG_BLOCKING` and the user answers it, as in Chrome.
+- **Protected pages.** Firefox refuses injection into `about:` pages, extension pages and Mozilla
+  domains such as addons.mozilla.org. Commands there fail fast with `NOT_INTERACTABLE`.
+
+## Tool support
+
+| Tool | Firefox | Notes |
+|---|---|---|
+| `tabs` | Same | |
+| `navigate`, `reload`, `wait` | Same | |
+| `snapshot`, `read_text`, `query` | Same | |
+| `network`, `fetch` | Same | `reload:true` waits for the document to finish loading first. |
+| `eval` | Same on most pages | No CDP fallback on pages whose CSP forbids eval; use `query` or `network`. A returned Promise is not awaited (as in Chrome). |
+| `screenshot` | Better | `tabs.captureTab` captures background tabs without foregrounding. |
+| `upload` (file input) | Different | Bytes are sent instead of a local path; the MCP server caps this at 48 MB. |
+| `upload` (drop zone) | Same | |
+| `click` (ref/selector) | Different | Synthetic events only; `real:true` falls back and says so. |
+| `click` (x, y) | Different | Synthetic events on the element at the point. |
+| `click` (x, y, `dragTo`) | Not supported | Needs real pointer input. |
+| `type`, `fill`, `select`, `key`, `scroll` | Different | Synthetic events (`isTrusted === false`). |
+| `act` | Same | Each step behaves as the tool above. |
+| `ask` | Same | Use it for sign-ins, CAPTCHAs and OTPs. |
+| Precise input (High-fidelity mode) | Not available | The settings toggle is hidden. |
+| Workspace sidebar | Different | `sidebar_action`; opens from the popup's Workspace button or the Firefox sidebar menu. |
+| TaskSpace recovery after a background restart | Weaker | No CDP target IDs, so archived pages may come back as missing. |
+
+## Install on Windows
+
+Requirements: Node.js 20+, Git, Firefox 128+.
+
+1. Get the code and build the Firefox extension:
+
+   ```bash
+   git clone https://github.com/BeatAPI/BeatBrowser.git
+   cd BeatBrowser
+   git checkout firefox-port
+   npm install
+   npm run build:firefox
+   ```
+
+   The unpacked extension is written to `dist\firefox\`.
+
+2. Configure your agent's MCP server from this checkout:
+
+   ```bash
+   node src/cli.js install
+   ```
+
+3. Use a separate profile while testing. Run `firefox -P`, create a profile (for example
+   `beat-test`) and start Firefox with it. On a new profile, accept the first-run Terms of Use prompt
+   and click into the window once; until then Firefox does not load pages for the extension.
+
+4. Load the extension temporarily: open `about:debugging#/runtime/this-firefox`, click
+   **Load Temporary Add-on…** and choose `dist\firefox\manifest.json`.
+
+5. Check the connection:
+
+   ```bash
+   node src/cli.js doctor --json
+   ```
+
+   Look for `"ok": true` and `"extensionOnline": true`.
+
+A temporary add-on is removed whenever Firefox restarts. To keep it installed, choose one of the
+options below.
+
+## Keeping it installed
+
+Release Firefox only installs signed add-ons. Two ways around reloading after every restart:
+
+### Option A: Firefox Developer Edition, signing check off
+
+1. Install Firefox Developer Edition and use (or create) a profile there.
+2. In `about:config`, set `xpinstall.signatures.required` to `false`.
+3. Package the build: `npx web-ext build -s dist/firefox -a dist --overwrite-dest`, then rename the
+   ZIP in `dist\` to `.xpi`.
+4. In `about:addons`, use the gear menu → **Install Add-on From File…** and pick the `.xpi`.
+
+Trade-off: everything stays local, and you rebuild/reinstall after changes. Only Developer Edition,
+Nightly and unbranded builds honor this pref.
+
+### Option B: self-signed through AMO (unlisted)
+
+1. Create AMO API credentials at https://addons.mozilla.org/developers/addon/api/key/.
+2. Sign the build without listing it publicly:
+
+   ```bash
+   npx web-ext sign -s dist/firefox --channel=unlisted --api-key=<JWT issuer> --api-secret=<JWT secret>
+   ```
+
+3. Install the signed `.xpi` from `about:addons` in release Firefox.
+
+Trade-off: works in your normal Firefox, but every change needs a new version number and a new
+signing round, and the code is uploaded to Mozilla for automated review. Do not commit the
+credentials.
+
+## Optional performance setting
+
+On a heavily loaded machine, Firefox's Windows efficiency mode for background content processes
+makes commands slow. In the profile you use for automation you may set
+`dom.ipc.processPriorityManager.backgroundUsesEcoQoS` to `false` in `about:config`. This is a profile
+preference; BeatBrowser never changes it for you.
+
+## Not implemented: trusted input
+
+Two Firefox mechanisms could add trusted input, file-path uploads and dialog handling. Both are
+outside this build and would change the trade-offs above:
+
+- **WebDriver BiDi**: start Firefox with `--remote-debugging-port`. Sites can see
+  `navigator.webdriver === true`, and the address bar shows the remote-control indicator.
+- **WebExtension Experiments**: a privileged API bundled with the add-on. Requires Developer Edition
+  or Nightly with signing checks off and `extensions.experiments.enabled`; AMO will not sign it.

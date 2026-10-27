@@ -4,7 +4,8 @@
 export function createWorkspacePages(chrome, taskSpaces) {
   async function list() {
     const [tabs, groups, stored, tasks] = await Promise.all([
-      chrome.tabs.query({}), chrome.tabGroups.query({}), chrome.storage.local.get(null),
+      // Firefox builds request no tabGroups permission; BeatBrowser never creates groups there.
+      chrome.tabs.query({}), chrome.tabGroups?.query({}) ?? [], chrome.storage.local.get(null),
       taskSpaces.humanCommand({action:'list'}),
     ]);
     const taskTabs = new Set(tasks.spaces.flatMap(s => s.pages.map(p => p.tabId)));
@@ -43,7 +44,7 @@ export function createWorkspacePages(chrome, taskSpaces) {
       }
       try {
         const tab = await chrome.tabs.get(current.tabId);
-        if (tab.groupId >= 0) {
+        if (tab.groupId >= 0 && chrome.tabGroups) {
           const group = await chrome.tabGroups.get(tab.groupId);
           if (group.title === 'BeatBrowser' || /^BeatBrowser · [a-zA-Z0-9-]{8}$/.test(group.title)) {
             await chrome.tabs.ungroup(current.tabId);
