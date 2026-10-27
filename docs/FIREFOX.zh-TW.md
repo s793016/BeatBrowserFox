@@ -74,6 +74,26 @@ Firefox 沒有 `chrome.debugger`（CDP），所以擴充功能使用 BeatBrowser
 
 暫時性附加元件在 Firefox 重新啟動後就會消失。要常駐請選下面其中一種方式。
 
+## Firefox 與 Chrome/Edge 並用
+
+Firefox 版只連 18910–18914 埠的橋接；Chrome/Edge 版用 18899–18903。Firefox 的橋接要用獨立的設定目錄與埠號，並在 agent 設定兩個 MCP server，讓每個指令都明確對應一個瀏覽器：
+
+```json
+{
+  "mcpServers": {
+    "beat-browser": { "command": "node", "args": ["<checkout>/src/cli.js", "mcp"] },
+    "beat-browser-firefox": {
+      "command": "node",
+      "args": ["<checkout>/src/cli.js", "mcp"],
+      "env": { "BEAT_BROWSER_HOME": "<home>/.beat-browser-firefox", "BEAT_BROWSER_PORT": "18910" }
+    }
+  }
+}
+```
+
+檢查 Firefox 這邊時，同樣要設定這兩個環境變數，例如 PowerShell：
+`$env:BEAT_BROWSER_HOME="$HOME.beat-browser-firefox"; $env:BEAT_BROWSER_PORT="18910"; node src/cli.js doctor`。
+
 ## 常駐安裝
 
 Firefox 正式版只安裝已簽章的附加元件。有兩種方式可以不必每次重啟都重新載入：

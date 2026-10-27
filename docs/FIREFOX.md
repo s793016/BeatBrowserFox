@@ -88,6 +88,28 @@ Requirements: Node.js 20+, Git, Firefox 128+.
 A temporary add-on is removed whenever Firefox restarts. To keep it installed, choose one of the
 options below.
 
+## Firefox and Chrome/Edge side by side
+
+The Firefox build talks only to a bridge on ports 18910-18914; the Chrome/Edge extension uses
+18899-18903. Run the Firefox bridge with its own config directory and port, and give your agent two
+MCP servers so every command names its browser:
+
+```json
+{
+  "mcpServers": {
+    "beat-browser": { "command": "node", "args": ["<checkout>/src/cli.js", "mcp"] },
+    "beat-browser-firefox": {
+      "command": "node",
+      "args": ["<checkout>/src/cli.js", "mcp"],
+      "env": { "BEAT_BROWSER_HOME": "<home>/.beat-browser-firefox", "BEAT_BROWSER_PORT": "18910" }
+    }
+  }
+}
+```
+
+Check the Firefox side with the same variables set, for example in PowerShell:
+`$env:BEAT_BROWSER_HOME="$HOME.beat-browser-firefox"; $env:BEAT_BROWSER_PORT="18910"; node src/cli.js doctor`.
+
 ## Keeping it installed
 
 Release Firefox only installs signed add-ons. Two ways around reloading after every restart:
