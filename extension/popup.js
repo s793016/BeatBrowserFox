@@ -26,7 +26,8 @@ document.getElementById('ver').textContent = 'v' + chrome.runtime.getManifest().
 
 function render(connected, r = {}) {
   dot.classList.toggle('on', connected);
-  const mismatch = connected && r.bridge && r.bridge !== chrome.runtime.getManifest().version;
+  const mine = chrome.runtime.getManifest().version;
+  const mismatch = connected && r.bridge && r.bridge !== mine && !mine.startsWith(r.bridge + '.');
   state.textContent = t(mismatch ? 'Update required' : connected ? 'Connected' : 'Disconnected');
   btn.hidden = connected;
   btn.disabled = false;

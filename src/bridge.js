@@ -22,6 +22,8 @@ const EXT_SILENCE_MS = 50000;
 const EXT_PROBE_MS = 15000;          
 const ORPHAN_GRACE_MS = 15000;
 // Chrome sends chrome-extension://<id>; Firefox sends moz-extension://<per-profile uuid>.
+// Firefox builds re-sign under 1.4.1.N for the same bridge release 1.4.1 (AMO never signs a version twice).
+const sameRelease = (ext) => ext === VERSION || String(ext).startsWith(VERSION + '.');
 const isExtensionOrigin = (origin) => origin.startsWith('chrome-extension://') || origin.startsWith('moz-extension://');
 
 export function startBridge({ port = DEFAULT_PORT, token = newToken(), writeInfo = true, orphanGraceMs = ORPHAN_GRACE_MS,
@@ -237,7 +239,7 @@ export function startBridge({ port = DEFAULT_PORT, token = newToken(), writeInfo
 
       
       
-      if (ws.extVersion !== VERSION) {
+      if (!sameRelease(ws.extVersion)) {
         log(`WARNING: version mismatch: extension ${ws.extVersion} vs bridge ${VERSION}. Reload the extension (chrome://extensions or about:debugging)`);
       }
       log(`extension connected (${extLabel(ws)})`);
@@ -275,7 +277,7 @@ export function startBridge({ port = DEFAULT_PORT, token = newToken(), writeInfo
         type: 'welcome', bridge: VERSION, v: PROTOCOL,
         extensionOnline: !!ext,
         extensionVersion: ext?.extVersion,
-        versionMismatch: !!ext && ext.extVersion !== VERSION,
+        versionMismatch: !!ext && !sameRelease(ext.extVersion),
         
         
         extensions: liveExtensions().map((e) => ({

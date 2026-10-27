@@ -110,7 +110,8 @@ async function connState() {
 function noteBridgeVersion(v) {
   if (!v) return;
   const mine = chrome.runtime.getManifest().version;
-  bridgeMismatch = v === mine ? '' : v;
+  // A Firefox re-sign (1.4.1.N) still matches bridge 1.4.1.
+  bridgeMismatch = v === mine || mine.startsWith(v + '.') ? '' : v;
   void uiText('Update required').then(label => chrome.action.setTitle({title:bridgeMismatch ? `BeatBrowser · ${label}` : 'BeatBrowser'}));
   setBadge(true);
 }
@@ -783,12 +784,19 @@ function waitForCommit(tabId, { expectNav = false } = {}) {
 
 async function waitForReady(tabId, { hardCap = 12000, quiet = 300, expectNav = false } = {}) {
   await waitForCommit(tabId, { expectNav });
-  try {
-    if (isUninjectable((await chrome.tabs.get(tabId)).url)) return;
-  } catch {
-    return;   
-  }
   const deadline = Date.now() + hardCap;
+  try {
+    // A Firefox tab stays on about:blank until its first navigation commits; on a slow
+    // background load that can outlast waitForCommit, so keep waiting for the real URL.
+    let url = (await chrome.tabs.get(tabId)).url;
+    while (IS_FIREFOX && expectNav && url === 'about:blank' && Date.now() < deadline) {
+      await sleep(200);
+      url = (await chrome.tabs.get(tabId)).url;
+    }
+    if (isUninjectable(url)) return;
+  } catch {
+    return;
+  }
   let quietSince = Date.now();
   while (Date.now() < deadline) {
     try {

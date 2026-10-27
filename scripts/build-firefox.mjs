@@ -13,7 +13,10 @@ const OUT = path.join(ROOT, 'dist', 'firefox');
 
 const chromeManifest = JSON.parse(fs.readFileSync(path.join(SRC, 'manifest.json'), 'utf8'));
 const manifest = JSON.parse(fs.readFileSync(path.join(FF, 'manifest.json'), 'utf8'));
-if (manifest.version !== chromeManifest.version) throw new Error('Firefox and Chrome manifest versions must match');
+// AMO signs each version once, so Firefox may add a fourth segment (1.4.1.N) to the shared release.
+if (manifest.version !== chromeManifest.version && !manifest.version.startsWith(chromeManifest.version + '.')) {
+  throw new Error('Firefox manifest version must equal the Chrome version or extend it as <version>.N');
+}
 
 // The offscreen document only exists to keep Chrome's service worker socket alive.
 const SKIP = new Set(['manifest.json', 'offscreen.html', 'offscreen.js']);
