@@ -20,7 +20,9 @@ const CMD_TIMEOUT = 30000;
 const IDLE_EXIT_MS = 30 * 60 * 1000; 
 const EXT_SILENCE_MS = 50000;        
 const EXT_PROBE_MS = 15000;          
-const ORPHAN_GRACE_MS = 15000;       
+const ORPHAN_GRACE_MS = 15000;
+// Chrome sends chrome-extension://<id>; Firefox sends moz-extension://<per-profile uuid>.
+const isExtensionOrigin = (origin) => origin.startsWith('chrome-extension://') || origin.startsWith('moz-extension://');
 
 export function startBridge({ port = DEFAULT_PORT, token = newToken(), writeInfo = true, orphanGraceMs = ORPHAN_GRACE_MS,
   silenceMs = EXT_SILENCE_MS, probeMs = EXT_PROBE_MS, tickMs = 20000, auditFn = audit } = {}) {
@@ -68,8 +70,8 @@ export function startBridge({ port = DEFAULT_PORT, token = newToken(), writeInfo
   
   
   const NO_EXT_MSG = `The extension is not connected to the bridge. The bridge already waited ${WAIT_MAX / 1000}s for it. `
-    + 'Ask the user to click the BeatBrowser icon in the Chrome toolbar and press "Reconnect" (the extension did not disappear, only the link dropped). '
-    + 'Open Chrome if it is closed. Reload it at chrome://extensions only after changing extension code.';
+    + 'Ask the user to click the BeatBrowser icon in the browser toolbar and press "Reconnect" (the extension did not disappear, only the link dropped). '
+    + 'Open the browser if it is closed. Reload the extension (chrome://extensions or about:debugging) only after changing extension code.';
 
   let lastActivity = Date.now();
 
@@ -98,7 +100,7 @@ export function startBridge({ port = DEFAULT_PORT, token = newToken(), writeInfo
     const pool = headed.length ? headed : live;
     return pool.reduce((a, b) => (a.lastRx >= b.lastRx ? a : b));
   }
-  const extLabel = (ws) => `Chrome ${ws.chromeVersion || '?'}${ws.headless ? ' · headless' : ''} · extension ${ws.extVersion}`;
+  const extLabel = (ws) => `${ws.browserLabel || `Chrome ${ws.chromeVersion || '?'}`}${ws.headless ? ' · headless' : ''} · extension ${ws.extVersion}`;
 
   const wss = new WebSocketServer({
     host: '127.0.0.1',
@@ -106,7 +108,7 @@ export function startBridge({ port = DEFAULT_PORT, token = newToken(), writeInfo
     verifyClient: (info, done) => {
       const origin = info.req.headers.origin;
       if (origin === undefined) return done(true);              
-      if (origin.startsWith('chrome-extension://')) return done(true);
+      if (isExtensionOrigin(origin)) return done(true);
       audit({ ev: 'reject_origin', origin });                   
       done(false, 403, 'forbidden origin');
     },
@@ -114,7 +116,7 @@ export function startBridge({ port = DEFAULT_PORT, token = newToken(), writeInfo
 
   wss.on('connection', (ws, req) => {
     const origin = req.headers.origin;
-    ws.isExtension = typeof origin === 'string' && origin.startsWith('chrome-extension://');
+    ws.isExtension = typeof origin === 'string' && isExtensionOrigin(origin);
     ws.helloed = false;
     ws.connId = ++connSeq;
     ws.lastRx = Date.now();
@@ -208,6 +210,7 @@ export function startBridge({ port = DEFAULT_PORT, token = newToken(), writeInfo
       ws.helloed = true;
       ws.extVersion = msg.version || '?';
       ws.chromeVersion = msg.chrome || '?';
+      ws.browserLabel = typeof msg.browser === 'string' ? msg.browser.slice(0, 40) : '';
       ws.headless = !!msg.headless;
       
       
@@ -235,14 +238,14 @@ export function startBridge({ port = DEFAULT_PORT, token = newToken(), writeInfo
       
       
       if (ws.extVersion !== VERSION) {
-        log(`WARNING: version mismatch: extension ${ws.extVersion} vs bridge ${VERSION}. Reload the extension at chrome://extensions`);
+        log(`WARNING: version mismatch: extension ${ws.extVersion} vs bridge ${VERSION}. Reload the extension (chrome://extensions or about:debugging)`);
       }
       log(`extension connected (${extLabel(ws)})`);
       
       
       const live = liveExtensions();
       if (live.length > 1) {
-        log(`WARNING: ${live.length} Chrome instances are connected (${live.map(extLabel).join(' / ')}); `
+        log(`WARNING: ${live.length} browser instances are connected (${live.map(extLabel).join(' / ')}); `
           + `commands route to: ${extLabel(primary())}`);
       }
       send(ws, { type: 'welcome', bridge: VERSION, v: PROTOCOL });
@@ -276,7 +279,7 @@ export function startBridge({ port = DEFAULT_PORT, token = newToken(), writeInfo
         
         
         extensions: liveExtensions().map((e) => ({
-          chrome: e.chromeVersion, version: e.extVersion, headless: e.headless, primary: e === ext,
+          chrome: e.chromeVersion, browser: e.browserLabel || undefined, version: e.extVersion, headless: e.headless, primary: e === ext,
         })),
       });
       return;

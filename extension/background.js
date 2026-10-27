@@ -33,7 +33,8 @@ async function ensureOffscreen() {
   if (ensuring) return ensuring;
   ensuring = (async () => {
     try {
-      if (!chrome.offscreen) throw new Error('This Chrome has no offscreen API');
+      // Firefox keeps a persistent background page, so the direct socket is the only leg.
+      if (!chrome.offscreen) return false;
       if (await chrome.offscreen.hasDocument()) return true;
       
       
@@ -175,7 +176,9 @@ async function connectDirectOnce() {
           type: 'hello', role: 'extension', extId: chrome.runtime.id,
           version: chrome.runtime.getManifest().version,
           instanceId: iid, headless: isHeadless(),
-          chrome: (navigator.userAgent.match(/Chrome\/([\d.]+)/) || [])[1], v: 1,
+          chrome: (navigator.userAgent.match(/Chrome\/([\d.]+)/) || [])[1],
+          // Firefox has no Chrome token in its UA; the bridge shows this label instead.
+          browser: (m => m ? `Firefox ${m[1]}` : undefined)(navigator.userAgent.match(/Firefox\/([\d.]+)/)), v: 1,
         }));
         sock.onmessage = (ev) => {
           const m = JSON.parse(ev.data);
@@ -659,12 +662,15 @@ async function inject(tabId) {
     
     await chrome.scripting.executeScript({ target: { tabId, allFrames: true }, files: ['content.js'] });
   } catch (e) {
-    throw err('NOT_INTERACTABLE', `Cannot inject a script into this page (${e.message}). chrome:// and store pages are protected by the browser.`);
+    throw err('NOT_INTERACTABLE', `Cannot inject a script into this page (${e.message}). chrome://, about: and extension store pages are protected by the browser.`);
   }
 }
 
 async function ensureContent(tabId, frameId = 0) {
   if (await pingContent(tabId, frameId)) return;
+  // Fail fast instead of reloading a page the browser will never let us inject into.
+  const url = await chrome.tabs.get(tabId).then((t) => t.url, () => '');
+  if (frameId === 0 && isUninjectable(url)) throw err('NOT_INTERACTABLE', `This page (${url}) is protected by the browser; extensions cannot read or act on it. Navigate to a normal web page first.`);
   await inject(tabId);
   if (await pingContent(tabId, frameId)) return;
   if (frameId !== 0) throw err('NOT_INTERACTABLE', `Frame f${frameId} cannot be injected (it may have navigated away or be sandboxed)`);
@@ -744,7 +750,12 @@ function waitForLoad(tabId, timeout = 15000) {
 }
 
 const UNINJECTABLE = /^(chrome|edge|devtools|view-source|chrome-extension|chrome-search|chrome-untrusted):/i;
-const isUninjectable = (url) => UNINJECTABLE.test(url || '') || /^https:\/\/chromewebstore\.google\.com/i.test(url || '');
+// Firefox also refuses about:, its own extension pages, and the restricted Mozilla domains
+// (extensions.webextensions.restrictedDomains), even with <all_urls>.
+const IS_FIREFOX = typeof browser !== 'undefined' && /Firefox\//.test(navigator.userAgent);
+const FIREFOX_UNINJECTABLE = /^(about|moz-extension|resource|jar):|^https:\/\/(addons\.mozilla\.org|accounts\.firefox\.com|[^/]*\.addons\.mozilla\.org|support\.mozilla\.org|discovery\.addons\.mozilla\.org)\//i;
+const isUninjectable = (url) => UNINJECTABLE.test(url || '') || /^https:\/\/chromewebstore\.google\.com/i.test(url || '')
+  || (IS_FIREFOX && FIREFOX_UNINJECTABLE.test(url || ''));
 
 //
 
@@ -1965,7 +1976,9 @@ const HANDLERS = {
     if (p.reload || !hasData) {
       await chrome.tabs.reload(id);
       await waitForReady(id, { expectNav: true });
-      await sleep(p.settle || 2000); 
+      // Firefox rejects executeScript ("Missing host permission") until the reloaded document finishes loading.
+      if (IS_FIREFOX) await waitForLoad(id);
+      await sleep(p.settle || 2000);
     }
 
     const [{ result }] = await chrome.scripting.executeScript({

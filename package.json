@@ -77,6 +77,7 @@
     "check:syntax": "node scripts/check-syntax.mjs",
     "check:security": "node scripts/check-security.mjs",
     "build:extension": "node scripts/pack-extension.mjs",
+    "build:firefox": "node scripts/build-firefox.mjs",
     "benchmark:offline": "node scripts/benchmark-fast-agent.mjs",
     "check:package": "node scripts/check-package.mjs",
     "check:upstream": "node scripts/check-upstream.mjs",

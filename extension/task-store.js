@@ -13,6 +13,7 @@ export function createTaskStore(chrome, {now=Date.now}={}) {
   let initialized;
   async function targets() {
     // Read-only: getTargets does not attach a debugger or foreground a page.
+    if (!chrome.debugger?.getTargets) return [];   // Firefox has no chrome.debugger, so archived pages carry no targetId.
     return (await chrome.debugger.getTargets()).filter(t=>t.type==='page' && Number.isInteger(t.tabId));
   }
   async function persist(spaces) {

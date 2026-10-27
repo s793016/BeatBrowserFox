@@ -173,8 +173,8 @@ export async function install({ yes = true, only = null } = {}) {
 }
 
 function printExtensionStep() {
-  console.log('One more step: load the Chrome extension');
-  console.log('  Run `beat-browser extension` for the steps (Chrome does not let a script install extensions),');
+  console.log('One more step: load the browser extension (Chrome, or Firefox via npm run build:firefox)');
+  console.log('  Run `beat-browser extension` for the steps (browsers do not let a script install extensions),');
   console.log('  then `beat-browser doctor` to verify.');
 }
 

@@ -223,19 +223,19 @@ async function doctor({ json = false } = {}) {
     report.versionMismatch = !!r.versionMismatch;
     report.extensions = r.extensions || [];
     if (r.ok) {
-      add('handshake', 'ok', `Handshake OK${r.extensionOnline ? ` · Chrome extension online (v${r.extensionVersion})` : ''}`);
+      add('handshake', 'ok', `Handshake OK${r.extensionOnline ? ` · Browser extension online (v${r.extensionVersion})` : ''}`);
     } else {
       add('handshake', 'fail', 'Handshake failed: ' + r.error);
     }
     if (r.versionMismatch) {
       add('version', 'fail', `Extension version ${r.extensionVersion} does not match the CLI`,
-        'Reload it at chrome://extensions, then refresh the target page');
+        'Reload it at chrome://extensions (Chrome) or about:debugging (Firefox), then refresh the target page');
     }
     if (r.ok && !r.extensionOnline) {
-      add('extension_connected', 'fail', 'The Chrome extension is not connected to the bridge right now',
+      add('extension_connected', 'fail', 'The browser extension is not connected to the bridge right now',
         'Load unpacked from the Extension path below (or click BeatBrowser → Reconnect). Disable any older browser-control extension first.');
     } else if (r.ok && r.extensionOnline) {
-      add('extension_connected', 'ok', `Chrome extension online (v${r.extensionVersion})`);
+      add('extension_connected', 'ok', `Browser extension online (v${r.extensionVersion})`);
     }
   }
 
@@ -261,9 +261,9 @@ async function doctor({ json = false } = {}) {
       c.status === 'ok' ? ok(c.message) : bad(c.message, c.hint);
     }
     if ((report.extensions || []).length > 1) {
-      console.log(`  ℹ️  ${report.extensions.length} Chrome instances are connected to the bridge:`);
+      console.log(`  ℹ️  ${report.extensions.length} browser instances are connected to the bridge:`);
       for (const e of report.extensions) {
-        console.log(`       ${e.primary ? '→' : ' '} Chrome ${e.chrome} · extension ${e.version}${e.headless ? ' · headless' : ''}${e.primary ? ' (commands go here)' : ''}`);
+        console.log(`       ${e.primary ? '→' : ' '} ${e.browser || `Chrome ${e.chrome}`} · extension ${e.version}${e.headless ? ' · headless' : ''}${e.primary ? ' (commands go here)' : ''}`);
       }
     }
     console.log('\nExtension');
@@ -392,7 +392,7 @@ Load the extension in Chrome (BeatBrowser is not on the Chrome Web Store):
      Add --reveal to select it in Finder / Explorer so you can drag it over.
 
 Once loaded the extension connects to the bridge by itself. Run \`beat-browser doctor\`
-and look for "Chrome extension online".
+and look for "Browser extension online".
 `);
 }
 
