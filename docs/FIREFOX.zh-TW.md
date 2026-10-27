@@ -76,7 +76,7 @@ Firefox 沒有 `chrome.debugger`（CDP），所以擴充功能使用 BeatBrowser
 
 ## Firefox 與 Chrome/Edge 並用
 
-Firefox 版只連 18910–18914 埠的橋接；Chrome/Edge 版用 18899–18903。Firefox 的橋接要用獨立的設定目錄與埠號，並在 agent 設定兩個 MCP server，讓每個指令都明確對應一個瀏覽器：
+Firefox 版只連 18910 埠的橋接；Chrome/Edge 版用 18899–18903。Firefox 的橋接要用獨立的設定目錄與埠號，並在 agent 設定兩個 MCP server，讓每個指令都明確對應一個瀏覽器：
 
 ```json
 {

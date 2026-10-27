@@ -6,7 +6,8 @@
   if (typeof browser === 'undefined' || globalThis.__beatFirefoxCompat) return;
   globalThis.__beatFirefoxCompat = true;
   // Firefox talks only to its own bridge (BEAT_BROWSER_PORT=18910), never to the Chrome/Edge one on 18899-18903.
-  globalThis.__beatBridgePorts = [18910, 18911, 18912, 18913, 18914];
+  // One port only: probing unused ones just builds up Firefox's failed-reconnect delays.
+  globalThis.__beatBridgePorts = [18910];
   // In MV2 Firefox, chrome.* is callback-only and browser.* is promise-only; the shared code mostly
   // awaits, but popup.js also passes Chrome-style trailing callbacks. Accept both on the calls it uses.
   const api = Object.create(browser);

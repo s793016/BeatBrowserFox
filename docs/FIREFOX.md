@@ -90,7 +90,7 @@ options below.
 
 ## Firefox and Chrome/Edge side by side
 
-The Firefox build talks only to a bridge on ports 18910-18914; the Chrome/Edge extension uses
+The Firefox build talks only to a bridge on port 18910; the Chrome/Edge extension uses
 18899-18903. Run the Firefox bridge with its own config directory and port, and give your agent two
 MCP servers so every command names its browser:
 

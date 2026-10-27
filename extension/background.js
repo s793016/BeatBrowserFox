@@ -173,7 +173,9 @@ async function connectDirectOnce() {
     try {
       directWs = await new Promise((resolve, reject) => {
         const sock = new WebSocket(`ws://127.0.0.1:${port}`);
-        const t = setTimeout(() => { sock.close(); reject(new Error('timeout')); }, 1500);
+        // Firefox delays reconnects to a host:port that failed before (up to 60 s). Giving up at 1.5 s
+        // would abort the delayed attempt, count as another failure, and never recover.
+        const t = setTimeout(() => { sock.close(); reject(new Error('timeout')); }, /Firefox\//.test(navigator.userAgent) ? 65000 : 1500);
         sock.onopen = () => sock.send(JSON.stringify({
           type: 'hello', role: 'extension', extId: chrome.runtime.id,
           version: chrome.runtime.getManifest().version,
