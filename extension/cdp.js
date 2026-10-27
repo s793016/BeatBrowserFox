@@ -42,6 +42,11 @@ async function ensureAttached(tabId) {
   const s = sessions.get(tabId);
   if (s?.ready) return touch(tabId);
 
+  if (!chrome.debugger) {
+    throw new L2Unavailable(
+      'This browser has no debugger API (Firefox), so real browser-level input and evaluation are unavailable here; '
+      + 'only synthetic page events can be used. There is no setting to turn this on.');
+  }
   if (!(await isEnabled())) {
     throw new L2Unavailable(
       'This step needs High-fidelity mode (browser-level real input events), but it is turned off. '

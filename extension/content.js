@@ -696,10 +696,10 @@
     }
   };
 
-  function realClick(el) {
+  function realClick(el, at) {
     const r = el.getBoundingClientRect();
-    const x = r.left + r.width / 2;
-    const y = r.top + r.height / 2;
+    const x = at ? at.x : r.left + r.width / 2;
+    const y = at ? at.y : r.top + r.height / 2;
 
     
     
@@ -1190,6 +1190,16 @@
   }
 
   
+
+  // Coordinate click without CDP (Firefox): synthetic events on whatever is at the point.
+  function doPointClick(p) {
+    const x = Number(p.x), y = Number(p.y);
+    const el = document.elementFromPoint(x, y);
+    if (!el) throw fail('NOT_INTERACTABLE', `Nothing is at (${x}, ${y}) in the viewport.`);
+    realClick(el, { x, y });
+    invalidate();
+    return { data: { note: `Clicked coordinates (${x}, ${y}) ${describeHit(el)} (synthetic event)` } };
+  }
 
   async function doClick(p) {
     const el = resolve(p);
@@ -2480,6 +2490,7 @@
             return sendResponse({ data: { blocked: disarmPayGuard() } });
           case 'effect': return sendResponse({ data: doEffect(msg) });
           case 'click': return sendResponse(await doClick(msg));
+          case 'pointClick': return sendResponse(doPointClick(msg));
           case 'type': return sendResponse(doType(msg));
           case 'select': return sendResponse(doSelect(msg));
           case 'fill': return sendResponse(doFill(msg));

@@ -1201,6 +1201,8 @@ async function performCore(id, cmd, p, { blockSensitive = false } = {}, ctx) {
     if (params.dragTo && Number.isFinite(params.dragTo.x) && Number.isFinite(params.dragTo.y)) {
       await cdp.drag(id, x, y, Number(params.dragTo.x), Number(params.dragTo.y));
       note = `Dragged from (${x}, ${y}) to (${params.dragTo.x}, ${params.dragTo.y}) (real event)`;
+    } else if (!chrome.debugger) {
+      note = (await toContent(id, { __hc: 'pointClick', x, y }, frameId))?.note || '';
     } else {
       await cdp.click(id, x, y);
       note = `Clicked coordinates (${x}, ${y}) (real event)`;
@@ -1274,7 +1276,9 @@ async function performCore(id, cmd, p, { blockSensitive = false } = {}, ctx) {
   if (!ev.changed && !usedL2 && l2ok && !params.real) {
     l2note = ev.writes.length
       ? ' (write requests were observed; input was not repeated)'
-      : ' (input was not repeated: no visible change does not prove failure. Inspect the page before explicitly trying real:true)';
+      : chrome.debugger
+        ? ' (input was not repeated: no visible change does not prove failure. Inspect the page before explicitly trying real:true)'
+        : ' (input was not repeated: no visible change does not prove failure. Inspect the page; this browser only has synthetic events, so real:true will not help)';
   }
 
   const challenge = matchChallenge(ev.challengeEv);
