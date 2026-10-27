@@ -1851,10 +1851,15 @@
       }
     }
 
-    const dt = new DataTransfer();
-    dt.items.add(file);
+    // Firefox: a DataTransfer built in the content-script sandbox is empty to page listeners, so build the
+    // file, DataTransfer and event with the page's own constructors. Chrome has no wrappedJSObject.
+    const page = window.wrappedJSObject;
+    const firefox = !!page && typeof cloneInto === 'function';
+    const dt = firefox ? new page.DataTransfer() : new DataTransfer();
+    dt.items.add(firefox ? new page.File(cloneInto([file], page), file.name, cloneInto({ type: file.type }, page)) : file);
     const ev = (type) => {
-      const e = new DragEvent(type, { bubbles: true, cancelable: true, composed: true, dataTransfer: dt });
+      const init = { bubbles: true, cancelable: true, composed: true, dataTransfer: dt };
+      const e = firefox ? new page.DragEvent(type, cloneInto(init, page, { wrapReflectors: true })) : new DragEvent(type, init);
       target.dispatchEvent(e);
       return e;
     };
@@ -2432,6 +2437,14 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   
+
+  // Firefox has no CDP dialog events; dialog-hook.js (MAIN world) announces native dialogs here.
+  document.addEventListener('__beatDialog', (e) => {
+    let d;
+    try { d = JSON.parse(String(e.detail)); } catch { return; }
+    if (d?.state !== 'open' && d?.state !== 'closed') return;
+    chrome.runtime.sendMessage({ __hcDialog: { state: d.state, type: String(d.type), message: String(d.message || '') } }).catch(() => {});
+  });
 
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (!msg || !msg.__hc) return;

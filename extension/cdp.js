@@ -326,6 +326,12 @@ chrome.permissions?.onAdded?.addListener(wireDebuggerEvents);
 
 export const pendingDialog = (tabId) => dialogs.get(tabId) || null;
 
+// Without chrome.debugger (Firefox), dialog-hook.js reports dialogs through the content script instead.
+export function noteDialog(tabId, { state, type, message } = {}) {
+  if (state === 'open') dialogs.set(tabId, { type, message, at: Date.now() });
+  else dialogs.delete(tabId);
+}
+
 // Upstream-inspired diagnosis; no automatic dialog acceptance or foregrounding.
 export async function probeDialog(tabId) {
   if (dialogs.has(tabId)) return dialogs.get(tabId);

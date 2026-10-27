@@ -25,6 +25,9 @@ export function createContentTransport({chrome, cdp, ensureContent, contentBudge
   }
   return async function send(tabId,payload,frameId=0) {
     const tab = await tabState(tabId);
+    // Firefox tab-modal dialogs do not stall content scripts, so a stall never reveals them; check the hook's record first.
+    const open = !chrome.debugger && cdp.pendingDialog(tabId);
+    if (open) throw error('DIALOG_BLOCKING',`A ${open.type} dialog is open on this page. Ask the user to answer it; no command was sent.`);
     // Recover before dispatch only. Unfreezing after timeout and resending could duplicate a write.
     if (tab.frozen) {
       await bounded(cdp.unfreeze(tabId),diagnosticBudget,error('PAGE_FROZEN','Could not unfreeze this page before sending the command.'));

@@ -661,6 +661,9 @@ async function inject(tabId) {
     
     
     await chrome.scripting.executeScript({ target: { tabId, allFrames: true }, files: ['content.js'] });
+    if (!chrome.debugger) {
+      await chrome.scripting.executeScript({ target: { tabId, allFrames: true }, world: 'MAIN', files: ['dialog-hook.js'] }).catch(() => {});
+    }
   } catch (e) {
     throw err('NOT_INTERACTABLE', `Cannot inject a script into this page (${e.message}). chrome://, about: and extension store pages are protected by the browser.`);
   }
@@ -1922,6 +1925,8 @@ const HANDLERS = {
     
     
     if (p.path && !p.dropSelector && !p.base64) {
+      // No chrome.debugger (Firefox): a local path cannot be handed to the input, so ask for the bytes.
+      if (!chrome.debugger) return { needBytes: true, reason: 'this browser cannot set a file input from a local path' };
       try {
         const t = (await toFrame(id, 'uploadTarget', p)).data;
         if (t?.selector) {
@@ -2163,7 +2168,14 @@ const HANDLERS = {
       return await cdp.screenshot(id, { full: !!p.full });
     } catch (e) {
       if (e.code !== 'NEEDS_L2' && e.code !== 'L2_BUSY') throw e;
-      
+      // Firefox: captureTab renders a background tab directly, so no foregrounding is needed.
+      if (chrome.tabs.captureTab) {
+        if (veiled) await sleep(60);
+        return p.full
+          ? { dataUrl: await chrome.tabs.captureTab(id, { format: 'png' }), scale: 1 }
+          : { dataUrl: await chrome.tabs.captureTab(id, { format: 'jpeg', quality: 80, scale: 0.6 }), scale: 0.6 };
+      }
+
       const tab = await chrome.tabs.get(id);
       if (!tab.active) {
         if (!p.focus) {
@@ -2424,6 +2436,8 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 
 chrome.tabs.onUpdated.addListener((tabId, info) => {
   if (info.status === 'complete') void syncMark(tabId);
+  // A navigation closes any open dialog; CDP reports that itself, the Firefox hook cannot.
+  if (info.status === 'loading' && !chrome.debugger) cdp.noteDialog(tabId, { state: 'closed' });
 });
 
 chrome.runtime.onMessage.addListener((m, _s, sendResponse) => {
@@ -2439,6 +2453,10 @@ chrome.runtime.onMessage.addListener((m, _s, sendResponse) => {
   
   if (m?.__hcBridge === 'in') {
     onMessage(m.msg);
+    return false;
+  }
+  if (m?.__hcDialog && Number.isInteger(_s.tab?.id) && !chrome.debugger) {
+    cdp.noteDialog(_s.tab.id, m.__hcDialog);
     return false;
   }
   
