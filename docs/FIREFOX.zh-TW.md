@@ -131,6 +131,10 @@ Firefox 正式版只安裝已簽章的附加元件。有兩種方式可以不必
 
 機器負載很重時，Firefox 對背景內容程序使用的 Windows 效率模式會讓指令變慢。你可以在自動化用的設定檔中，於 `about:config` 把 `dom.ipc.processPriorityManager.backgroundUsesEcoQoS` 設為 `false`。這是設定檔層級的偏好設定，BeatBrowser 不會替你更改。
 
+## 橋接重啟後重連很慢
+
+橋接會跟著啟動它的 agent 工作階段一起結束，所以每次新的工作階段啟動橋接時，擴充功能都要重新連線。擴充功能每 5 秒用一般 HTTP 請求檢查一次，橋接有回應才開 WebSocket，以避開 Firefox 的失敗重連延遲；正常情況重連只要 1–2 秒。Firefox 對同一個 IP 一次只允許一條 WebSocket 處於連線中，如果有其他附加元件一直用 WebSocket 重試連 `127.0.0.1` 上沒人監聽的埠，每次重試最多會佔住這個名額 60 秒，agent 可能因此回報「extension is not connected」，之後工具列卻又顯示已連線。重連要花數十秒時，請停用這類附加元件，例如本機伺服器沒在執行的其他瀏覽器自動化擴充。
+
 ## 未實作：trusted 輸入
 
 Firefox 有兩種機制可以補上 trusted 輸入、以檔案路徑上傳和對話框處理。兩者都不在這個版本中，而且會改變上面的取捨：

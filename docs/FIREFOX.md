@@ -156,6 +156,17 @@ makes commands slow. In the profile you use for automation you may set
 `dom.ipc.processPriorityManager.backgroundUsesEcoQoS` to `false` in `about:config`. This is a profile
 preference; BeatBrowser never changes it for you.
 
+## Slow reconnects after the bridge restarts
+
+The bridge exits with the agent session that started it, so the extension reconnects whenever a new
+session starts one. It checks every 5 s with a plain HTTP request and opens the WebSocket only once
+the bridge answers, which keeps Firefox's failed-reconnect delay out of the way; a reconnect normally
+takes 1–2 s. Firefox also lets only one WebSocket per IP address be connecting at a time. Another
+add-on that keeps retrying a WebSocket to `127.0.0.1` on a port where nothing listens therefore holds
+that slot for up to 60 s per retry, and the agent can give up with "extension is not connected" while
+the toolbar later shows it connected. If reconnects take tens of seconds, disable such add-ons, for
+example other browser-automation extensions whose local server is not running.
+
 ## Not implemented: trusted input
 
 Two Firefox mechanisms could add trusted input, file-path uploads and dialog handling. Both are

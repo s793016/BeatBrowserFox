@@ -164,12 +164,23 @@ async function directConnect() {
   try { await connectDirectOnce(); }
   finally { directConnecting = false; }
 }
+// Firefox only: a plain HTTP probe (ws answers 426) before opening a WebSocket. A refused WebSocket
+// counts toward Firefox's failed-reconnect delay (up to 60 s), which outlived a bridge restart and
+// made agents give up; a refused fetch does not, so the socket opens as soon as the bridge is back.
+async function bridgeListening(port) {
+  if (!/Firefox\//.test(navigator.userAgent)) return true;
+  try {
+    await fetch(`http://127.0.0.1:${port}/`, { cache: 'no-store', signal: AbortSignal.timeout(3000) });
+    return true;
+  } catch { return false; }
+}
 async function connectDirectOnce() {
   if (directWs && directWs.readyState <= 1) return;
   
   
   const iid = await instanceId();
   for (const port of PORTS) {
+    if (!(await bridgeListening(port))) continue;
     try {
       directWs = await new Promise((resolve, reject) => {
         const sock = new WebSocket(`ws://127.0.0.1:${port}`);
@@ -2492,6 +2503,9 @@ const veilMarks = (tabId, on) =>
 
 chrome.alarms.create('hc-keepalive', { periodInMinutes: 0.5 });
 chrome.runtime.onStartup.addListener(() => chrome.alarms.create('hc-keepalive', { periodInMinutes: 0.5 }));
+// Firefox's background page is persistent, so retry well inside the agent's 40 s wait; each idle tick
+// is one refused localhost fetch.
+if (/Firefox\//.test(navigator.userAgent)) setInterval(() => { if (!directWs) void directConnect(); }, 5000);
 
 cdp.reapOrphans();
 
