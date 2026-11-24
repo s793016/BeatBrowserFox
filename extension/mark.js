@@ -19,6 +19,10 @@
   const t = (key, params) => ui.text(key, language, params);
   ui.read().then(value => { language=value;render();updateAskLanguage(); }).catch(()=>{});
   chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.markDockPos) {
+      dockPos = changes.markDockPos.newValue || null;
+      applyDockPos();
+    }
     if (area === 'local' && changes.uiLanguage) {
       language=ui.resolve(changes.uiLanguage.newValue);render();updateAskLanguage();
     }
@@ -128,6 +132,10 @@
       transition: opacity .25s ease;
     }
     .dock.dodge { pointer-events: none; opacity: .12; }
+    .dock .chip, .dock .card .head { touch-action: none; user-select: none; -webkit-user-select: none; }
+    .dock.dragging { transition: none; }
+    .dock.dragging .chip, .dock.dragging .card .head { cursor: grabbing; }
+    .card .head { cursor: grab; }
     .chip {
       display: flex; align-items: center; gap: 6px;
       padding: 5px 11px 5px 9px; border-radius: 999px;
@@ -245,8 +253,101 @@
     root.append(style, wrap);
     document.documentElement.appendChild(host);
     if (stealthed) host.style.visibility = 'hidden';
+    initDockDrag(wrap.querySelector('.dock'));
+    applyDockPos();
     watchContext();
   }
+
+  // ---------- draggable dock ----------
+  // The chip/card can cover page controls, so the user may drag it by the chip or the
+  // card header. The offset (from the bottom-right corner) is shared by every tab via
+  // storage; double-clicking the card header puts it back in the corner.
+
+  const DOCK_POS = 'markDockPos';
+  const DOCK_MARGIN = 16;
+  // position:fixed offsets are measured inside the scrollbars, so use clientWidth/Height.
+  const vw = () => document.documentElement.clientWidth || innerWidth;
+  const vh = () => document.documentElement.clientHeight || innerHeight;
+  let dockPos = null;          // { right, bottom } in px, or null for the default corner
+  let suppressClick = false;
+
+  function clampDock(pos) {
+    const dock = wrap?.querySelector('.dock');
+    const r = dock?.getBoundingClientRect();
+    const w = r?.width || 120, h = r?.height || 30;
+    return {
+      right: Math.round(Math.min(Math.max(pos.right, 0), Math.max(0, vw() - w))),
+      bottom: Math.round(Math.min(Math.max(pos.bottom, 0), Math.max(0, vh() - h))),
+    };
+  }
+
+  function applyDockPos() {
+    const dock = wrap?.querySelector('.dock');
+    if (!dock) return;
+    const p = dockPos ? clampDock(dockPos) : { right: DOCK_MARGIN, bottom: DOCK_MARGIN };
+    dock.style.right = `${p.right}px`;
+    dock.style.bottom = `${p.bottom}px`;
+  }
+
+  function saveDockPos(pos) {
+    dockPos = pos;
+    try { chrome.storage.local.set({ [DOCK_POS]: pos }); } catch {  }
+  }
+
+  function initDockDrag(dock) {
+    let start = null;
+    dock.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      const path = e.composedPath();
+      const handle = path.find((n) => n.classList?.contains('chip') || (n.classList?.contains('head') && n.parentElement?.classList.contains('card')));
+      if (!handle || path.some((n) => n.tagName === 'BUTTON')) return;
+      const r = dock.getBoundingClientRect();
+      start = { x: e.clientX, y: e.clientY, right: vw() - r.right, bottom: vh() - r.bottom, moved: false, id: e.pointerId };
+      // Track on the window: a quick drag leaves the chip before the first move event.
+      addEventListener('pointermove', move, true);
+      addEventListener('pointerup', end, true);
+      addEventListener('pointercancel', end, true);
+    });
+    function move(e) {
+      if (!start || e.pointerId !== start.id) return;
+      const dx = e.clientX - start.x, dy = e.clientY - start.y;
+      if (!start.moved) {
+        if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+        start.moved = true;
+        dock.classList.add('dragging');
+      }
+      dockPos = clampDock({ right: start.right - dx, bottom: start.bottom - dy });
+      applyDockPos();
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    function end(e) {
+      if (!start || e.pointerId !== start.id) return;
+      removeEventListener('pointermove', move, true);
+      removeEventListener('pointerup', end, true);
+      removeEventListener('pointercancel', end, true);
+      if (start.moved) {
+        dock.classList.remove('dragging');
+        saveDockPos(dockPos);
+        suppressClick = true;
+        setTimeout(() => { suppressClick = false; }, 0);
+      }
+      start = null;
+    }
+    // A drag ends with a click on the chip; swallow it so the card does not open.
+    dock.addEventListener('click', (e) => {
+      if (suppressClick) { e.stopPropagation(); e.preventDefault(); suppressClick = false; }
+    }, true);
+    dock.addEventListener('dblclick', (e) => {
+      const onHead = e.composedPath().some((n) => n.classList?.contains('head') && n.parentElement?.classList.contains('card'));
+      if (!onHead) return;
+      dockPos = null;
+      try { chrome.storage.local.remove(DOCK_POS); } catch {  }
+      applyDockPos();
+    });
+  }
+
+  addEventListener('resize', () => { if (dockPos) applyDockPos(); });
 
   
   
@@ -318,6 +419,7 @@
     for (const o of owners) {
       own.appendChild(expanded ? buildCard(o) : buildChip(o));
     }
+    if (dockPos) applyDockPos();   // the card is wider than the chip; keep it on screen
 
     
     if (expanded && owners.length && !tickTimer) tickTimer = setInterval(render, 20000);
@@ -720,7 +822,8 @@
   
   
   try {
-    chrome.storage.local.get('dockOpen').then((v) => {
+    chrome.storage.local.get(['dockOpen', 'markDockPos']).then((v) => {
+      if (v?.markDockPos) { dockPos = v.markDockPos; applyDockPos(); }
       if (v?.dockOpen && !expanded) { expanded = true; if (owners.length) render(); }
     }).catch(() => {});
   } catch {  }
