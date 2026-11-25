@@ -55,7 +55,7 @@ Requirements: Node.js 20+, Git, Firefox 128+.
 1. Get the code and build the Firefox extension:
 
    ```bash
-   git clone -b firefox-port https://github.com/s793016/BeatBrowser.git
+   git clone -b firefox-port https://github.com/s793016/BeatBrowserFox.git BeatBrowser
    cd BeatBrowser
    npm install
    npm run build:firefox

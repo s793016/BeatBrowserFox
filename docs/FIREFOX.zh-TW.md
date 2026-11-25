@@ -45,7 +45,7 @@ Firefox 沒有 `chrome.debugger`（CDP），所以擴充功能使用 BeatBrowser
 1. 取得原始碼並建置 Firefox 擴充功能：
 
    ```bash
-   git clone -b firefox-port https://github.com/s793016/BeatBrowser.git
+   git clone -b firefox-port https://github.com/s793016/BeatBrowserFox.git BeatBrowser
    cd BeatBrowser
    npm install
    npm run build:firefox
