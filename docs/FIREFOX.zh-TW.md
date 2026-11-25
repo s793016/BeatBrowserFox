@@ -45,9 +45,8 @@ Firefox 沒有 `chrome.debugger`（CDP），所以擴充功能使用 BeatBrowser
 1. 取得原始碼並建置 Firefox 擴充功能：
 
    ```bash
-   git clone https://github.com/BeatAPI/BeatBrowser.git
+   git clone -b firefox-port https://github.com/s793016/BeatBrowser.git
    cd BeatBrowser
-   git checkout firefox-port
    npm install
    npm run build:firefox
    ```
@@ -122,6 +121,7 @@ Firefox 正式版只安裝已簽章的附加元件。有兩種方式可以不必
    ```
 
    manifest 宣告了 `data_collection_permissions: none`：擴充功能只跟 127.0.0.1 上的橋接通訊。之後每次重新簽章，都要調高 `firefox/manifest.json` 的 `version`。
+   附加元件 ID `beatbrowser-firefox@local` 已由這個 fork 的作者在 AMO 登記，第一次簽章前請把 `firefox/manifest.json` 的 `browser_specific_settings.gecko.id` 改成你自己的 ID（例如 `beatbrowser-firefox@<你的網域>`）。
 
 3. 在正式版 Firefox 的 `about:addons` 安裝簽好的 `.xpi`。
 

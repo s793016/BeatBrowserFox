@@ -55,9 +55,8 @@ Requirements: Node.js 20+, Git, Firefox 128+.
 1. Get the code and build the Firefox extension:
 
    ```bash
-   git clone https://github.com/BeatAPI/BeatBrowser.git
+   git clone -b firefox-port https://github.com/s793016/BeatBrowser.git
    cd BeatBrowser
-   git checkout firefox-port
    npm install
    npm run build:firefox
    ```
@@ -142,6 +141,9 @@ Nightly and unbranded builds honor this pref.
 
    The manifest declares `data_collection_permissions: none`: the extension only talks to the
    bridge on 127.0.0.1. Each later signing needs a higher `version` in `firefox/manifest.json`.
+   The add-on ID `beatbrowser-firefox@local` is already registered on AMO by this fork's author,
+   so change `browser_specific_settings.gecko.id` in `firefox/manifest.json` to an ID of your own
+   (for example `beatbrowser-firefox@<your-domain>`) before your first signing.
 
 3. Install the signed `.xpi` from `about:addons` in release Firefox.
 
