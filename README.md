@@ -7,6 +7,8 @@
 # BeatBrowser
 
 > **This fork adds a Firefox port** (branch `firefox-port`). See [docs/FIREFOX.md](docs/FIREFOX.md) · [繁體中文](docs/FIREFOX.zh-TW.md). It is provided as is, without support; for the Chrome extension use the upstream project, [BeatAPI/BeatBrowser](https://github.com/BeatAPI/BeatBrowser).
+>
+> To let your agent set it up, paste: *Set up BeatBrowser for Firefox from https://github.com/s793016/BeatBrowserFox. Read AGENT_INSTALL.firefox.md on the firefox-port branch, then guide me through installing the Firefox extension. Verify doctor reports ok and extensionOnline.*
 
 **[English](README.md)** · [简体中文](README.zh-CN.md)
 
